@@ -38,7 +38,7 @@ charts: ## helm lint + render every local chart
 	done
 
 security: ## Static security scan with trivy
-	trivy config --severity HIGH,CRITICAL --exit-code 1 --skip-dirs '**/.terraform' .
+	trivy config --severity HIGH,CRITICAL --exit-code 1 --ignorefile .trivyignore --skip-dirs '**/.terraform' .
 
 check: fmt-check validate lint charts security ## Everything CI runs
 

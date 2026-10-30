@@ -1,0 +1,7 @@
+# Accepted findings. Each entry needs a reason.
+
+# Cloudflare log bucket uses SSE-S3 rather than a customer-managed KMS key.
+# Logpush writes with a plain PutObject from Cloudflare's own AWS principal;
+# the bucket holds request metadata only (no bodies) and is private, TLS-only
+# and lifecycle-expired.
+AWS-0132

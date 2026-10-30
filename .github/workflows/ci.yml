@@ -111,4 +111,5 @@ jobs:
           scan-ref: .
           severity: HIGH,CRITICAL
           exit-code: "1"
+          trivyignores: .trivyignore
           skip-dirs: "**/.terraform"

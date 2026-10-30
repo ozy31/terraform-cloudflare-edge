@@ -1,0 +1,20 @@
+# Values are rendered by the Terraform module; these defaults exist for `helm lint`.
+replicas: 2
+
+image:
+  repository: cloudflare/cloudflared
+  tag: "2026.10.6"
+
+# Injected with set_sensitive by Terraform.
+tunnelToken: "lint-placeholder"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+serviceMonitor:
+  enabled: true
+  releaseLabel: kube-prometheus-stack

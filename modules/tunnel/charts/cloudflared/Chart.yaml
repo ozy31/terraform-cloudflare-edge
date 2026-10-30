@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cloudflared
+description: Cloudflare Tunnel connectors for a remotely managed tunnel
+type: application
+version: 0.1.0
+appVersion: "2026.10.6"

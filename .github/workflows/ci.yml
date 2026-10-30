@@ -1,0 +1,114 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: "1.15.5"
+  TFLINT_VERSION: "v0.65.0"
+
+jobs:
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+  validate:
+    name: validate (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - modules/zone-security
+          - modules/logpush-s3
+          - modules/tunnel
+          - modules/ai-gateway
+          - examples/complete
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ hashFiles('.tflint.hcl') }}
+
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tflint --init --config="$GITHUB_WORKSPACE/.tflint.hcl"
+
+      - name: tflint
+        run: |
+          set -euo pipefail
+          for d in modules/* examples/complete; do
+            echo "::group::$d"
+            tflint --chdir="$d" --config="$GITHUB_WORKSPACE/.tflint.hcl" --format=compact
+            echo "::endgroup::"
+          done
+
+  charts:
+    name: helm lint (cloudflared)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: make charts
+
+  security:
+    name: trivy config scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: trivy config
+        # v0.36.0, pinned by commit SHA
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          skip-dirs: "**/.terraform"

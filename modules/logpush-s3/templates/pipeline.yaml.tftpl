@@ -1,0 +1,33 @@
+version: "2"
+cloudflare-logs:
+  source:
+    s3:
+      notification_type: sqs
+      compression: gzip
+      codec:
+        newline: {}
+      sqs:
+        queue_url: "${queue_url}"
+      aws:
+        region: "${region}"
+        sts_role_arn: "${role_arn}"
+  processor:
+    # Each line is one NDJSON record; lift its fields to the top level.
+    - parse_json:
+        source: message
+    - delete_entries:
+        with_keys: ["message"]
+  route:
+%{ for ds in datasets ~}
+    - ${ds}: 'contains(/s3/key, "/${ds}/")'
+%{ endfor ~}
+  sink:
+%{ for ds in datasets ~}
+    - opensearch:
+        hosts: ["${endpoint}"]
+        index: "cloudflare-${replace(ds, "_", "-")}-%%{yyyy.MM.dd}"
+        routes: ["${ds}"]
+        aws:
+          region: "${region}"
+          sts_role_arn: "${role_arn}"
+%{ endfor ~}
